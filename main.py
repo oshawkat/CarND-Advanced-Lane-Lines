@@ -5,13 +5,14 @@ import glob
 import matplotlib.pyplot as plt
 import lanelines as ll
 
+
 def main():
     print("Starting lane line detection...")
 
     # Perform camera calibration to enable camera distortion correction
     calib_images = glob.glob('./input/camera_cal/calibration*.jpg')
     grid_size = (9, 6)
-    mtx, dist, rvecs, tvecs = ll.calibrate_camera(calib_images, grid_size[0], 
+    mtx, dist, rvecs, tvecs = ll.calibrate_camera(calib_images, grid_size[0],
                                                   grid_size[1])
 
     # Undistort and save a few images to validate calibration
@@ -47,9 +48,8 @@ def main():
         print(output_dir + "undistorted_" + img_name)
 
         # Apply Gaussian smoothing
-        kernel_size = 3
-        smooth = cv2.GaussianBlur(undistorted, ksize=(kernel_size, kernel_size),
-                                  sigmaX=0)
+        kernel_size = (3, 3)
+        smooth = cv2.GaussianBlur(undistorted, ksize=kernel_size, sigmaX=0)
         cv2.imwrite(output_dir + "smooth_" + img_name, smooth)
 
         # Apply color thresholding in the HLS color space
@@ -84,8 +84,8 @@ def main():
 
         # Change the lane perspective to a top-down view using points manually
         # selected from a straight-road image
-        car_hood = 35 # vertical pixels taken up by the car hood in warped img
-        src_pts = np.float32([[698, 450], # start at top right and go clockwise
+        car_hood = 35  # vertical pixels taken up by the car hood in warped img
+        src_pts = np.float32([[698, 450],  # start at top right --> clockwise
                               [1125, mask.shape[0] - car_hood],
                               [210, mask.shape[0] - car_hood],
                               [590, 450]])
@@ -102,7 +102,7 @@ def main():
         # Find lane lines using sliding windows technique
         leftx, lefty, rightx, righty, sliding_img = ll.find_lane_pixels(warped)
         l_fit, r_fit, l_fitx, r_fitx, ploty, poly_img = ll.fit_polynomial(
-                                                            warped)
+            warped)
         cv2.imwrite(output_dir + "sliding_win_" + img_name,
                     sliding_img)
         # Plots the left and right polynomials on the lane lines
@@ -119,10 +119,10 @@ def main():
         met_per_pix_y = 30 / 720
         left_curvature = ll.measure_curvature_pixels(l_fit, warped.shape[0])
         right_curvature = ll.measure_curvature_pixels(r_fit, warped.shape[0])
-        left_curvature_met = ll.measure_curvature_meters(l_fit, 
-            warped.shape[0], met_per_pix_x, met_per_pix_y)
-        right_curvature_met = ll.measure_curvature_meters(r_fit, 
-            warped.shape[0], met_per_pix_x, met_per_pix_y)
+        left_curvature_met = ll.measure_curvature_meters(
+            l_fit, warped.shape[0], met_per_pix_x, met_per_pix_y)
+        right_curvature_met = ll.measure_curvature_meters(
+            r_fit, warped.shape[0], met_per_pix_x, met_per_pix_y)
         print(left_curvature)
         print(right_curvature)
         print(left_curvature_met)
@@ -132,7 +132,7 @@ def main():
         # This variable is the x position of the middle of the lane
         # corresponding to being centered in the lane.  Measured manually from
         # straight_lines2 example image
-        zero_offset = 622 
+        zero_offset = 622
         left_pos = ll.solve_poly_at(l_fit, warped.shape[0] - car_hood)
         right_pos = ll.solve_poly_at(r_fit, warped.shape[0] - car_hood)
         lane_midpoint = (left_pos + right_pos) / 2.0
@@ -147,12 +147,12 @@ def main():
         top_ll_area = ll.draw_lane_line_area(l_fitx, r_fitx, ploty,
                                              img.shape)
         warped_ll_area = cv2.warpPerspective(top_ll_area, M_inv,
-                                             (img.shape[1], img.shape[0])) 
+                                             (img.shape[1], img.shape[0]))
         ll_overlay = cv2.addWeighted(undistorted, 1, warped_ll_area, 0.3, 0)
         cv2.imwrite(output_dir + "ll_overlay_" + img_name, ll_overlay)
 
 
-# Overlay image with lane curvature and vehicle lane offset    
+# Overlay image with lane curvature and vehicle lane offset
 
-if __name__== "__main__":
+if __name__ == "__main__":
     main()
