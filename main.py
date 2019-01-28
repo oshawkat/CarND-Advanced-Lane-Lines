@@ -16,7 +16,7 @@ def main():
 
     # Undistort and save a few images to validate calibration
     num_pics_to_save = 2
-    output_dir = "./output_images/camera_calibration/"
+    output_dir = "./output/camera_calibration/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     for pic_num in range(num_pics_to_save):
@@ -31,7 +31,7 @@ def main():
     images = glob.glob('./input/test_images/straight_lines2.jpg')
 
     # Create output directory to save generated images
-    output_dir = "./output_images/lane_lines/"
+    output_dir = "./output/lane_lines/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -84,11 +84,12 @@ def main():
 
         # Change the lane perspective to a top-down view using points manually
         # selected from a straight-road image
-        src_pts = np.float32([[680, 450], # start at top right and go clockwise
-                              [1125, mask.shape[0]],
-                              [210, mask.shape[0]],
-                              [595, 450]])    
-        dst_pts = np.float32([[900, 0],
+        car_hood = 35 # vertical pixels taken up by the car hood in warped img
+        src_pts = np.float32([[698, 450], # start at top right and go clockwise
+                              [1125, mask.shape[0] - car_hood],
+                              [210, mask.shape[0] - car_hood],
+                              [590, 450]])
+        dst_pts = np.float32([[980, 0],
                               [980, mask.shape[0]],
                               [300, mask.shape[0]],
                               [300, 0]])
@@ -104,18 +105,41 @@ def main():
                                                             warped)
         cv2.imwrite(output_dir + "sliding_win_" + img_name,
                     sliding_img)
-        cv2.imwrite(output_dir + "poly_" + img_name, poly_img)
+        # Plots the left and right polynomials on the lane lines
+        plt.imshow(poly_img)
+        plt.plot(l_fitx, ploty, color='yellow')
+        plt.plot(r_fitx, ploty, color='yellow')
+        plt.xlim(0, poly_img.shape[1])
+        plt.ylim(poly_img.shape[0], 0)
+        plt.savefig(output_dir + "poly_" + img_name)
 
         # Find lane curvature
+        print("Lane pixel to meter scale values are incorrect.  Please update")
+        met_per_pix_x = 3.7 / 580
+        met_per_pix_y = 30 / 720
         left_curvature = ll.measure_curvature_pixels(l_fit, warped.shape[0])
         right_curvature = ll.measure_curvature_pixels(r_fit, warped.shape[0])
+        left_curvature_met = ll.measure_curvature_meters(l_fit, 
+            warped.shape[0], met_per_pix_x, met_per_pix_y)
+        right_curvature_met = ll.measure_curvature_meters(r_fit, 
+            warped.shape[0], met_per_pix_x, met_per_pix_y)
         print(left_curvature)
         print(right_curvature)
+        print(left_curvature_met)
+        print(right_curvature_met)
 
         # Find vehicle offset in lane
-        # TODO
-        left_pos = ll.solve_poly_at(l_fit, warped.shape[0])
-        right_pos = ll.solve_poly_at(r_fit, warped.shape[0])
+        # This variable is the x position of the middle of the lane
+        # corresponding to being centered in the lane.  Measured manually from
+        # straight_lines2 example image
+        zero_offset = 622 
+        left_pos = ll.solve_poly_at(l_fit, warped.shape[0] - car_hood)
+        right_pos = ll.solve_poly_at(r_fit, warped.shape[0] - car_hood)
+        lane_midpoint = (left_pos + right_pos) / 2.0
+        lane_offset_px = lane_midpoint - zero_offset
+        lane_offset_m = lane_offset_px * met_per_pix_x
+        print("Lane is offset in px: ", lane_offset_px)
+        print("Lane is offset in m:  ", lane_offset_m)
 
         # Draw lane lines on original input image by first generating a valid
         # ll region in the top view then warping it to the camera perspective

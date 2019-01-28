@@ -338,8 +338,9 @@ def solve_poly_at(poly, eval_pt=0):
     
     return poly[0]*eval_pt**2 + poly[1]*eval_pt + poly[2]
 
-def measure_curvature_pixels(fit, y_eval=0):
+def measure_curvature_pixels(poly_fit, y_eval=0):
     '''Calculate curvature of 2nd order polynomial
+
         Input:
             poly: polynomial on which to calculate curvature
             y_eval: y value along poly at which the curvature
@@ -349,6 +350,37 @@ def measure_curvature_pixels(fit, y_eval=0):
             Radius of curvature, in pixels
     '''
 
-    curverad = ((1 + (2 * fit[0] * y_eval + fit[1])**2)**(3/2)) / abs(2 * fit[0])
+    curverad = ((1 + (2 * poly_fit[0] * y_eval + poly_fit[1])**2)**(3/2)) \
+               / abs(2 * poly_fit[0])
 
     return curverad
+
+def measure_curvature_meters(poly_fit, y_eval=0, met_per_pix_x=1., 
+                             met_per_pix_y=1.):
+    '''Calculate curvature of 2nd order polynomial
+
+        Input:
+            poly_fit: polynomial on which to calculate curvature
+            y_eval: y value along poly at which the curvature
+                    is calculated
+            met_per_pix_x: scale in x (horizontal) direction as meters/pixel
+            met_per_pix_y: scale in y (vertical) direction as meters/pixel
+        
+        Output:
+            Radius of curvature, in meters
+    '''
+
+    # Scale the polynomial coefficients from pixel to meters
+    # Per Nanodegree lecture 9.7, if the original polynomial is given as:
+    # x = a*(y**2) + b*y + c, the scaled version is:
+    # x= mx / (my ** 2) * a* (y**2) + (mx/my)*b*y+c
+    poly_fit_meters = np.zeros_like(poly_fit)
+    poly_fit_meters[0] = met_per_pix_x / (met_per_pix_y ** 2) * poly_fit[0]
+    poly_fit_meters[1] = met_per_pix_x / met_per_pix_y * poly_fit[1]
+    poly_fit_meters[2] = poly_fit[2]
+
+
+    # Using these scaled coefficients, each pixel should correspond to a meter
+    curverad_meters = measure_curvature_pixels(poly_fit_meters, y_eval)
+
+    return curverad_meters
