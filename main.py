@@ -1,7 +1,8 @@
 import os
+import glob
 import numpy as np
 import cv2
-import glob
+from moviepy.editor import VideoFileClip
 import matplotlib.pyplot as plt
 import lanelines as ll
 
@@ -49,6 +50,37 @@ def main():
 
         find_lane_lines(undistorted, img_name, output_dir)
 
+    # Perform lane line detection on a video
+    vid_input = "./input/project_video.mp4"
+    vid_output = "./output/project_video.mp4"
+    # vid_clip = VideoFileClip(vid_input).subclip(0, 5)
+    vid_clip = VideoFileClip(vid_input)
+    processed_clip = vid_clip.fl_image(
+        lambda distorted: vid_process_image(distorted, mtx, dist))
+    # processed_clip = vid_clip.fl_image(find_lane_lines)
+    processed_clip.write_videofile(vid_output, audio=False)
+
+
+def vid_process_image(img, cam_mtx, distortion):
+    """ Callback function for finding lanelines in video images
+
+        Input:
+            img: distorted image to be processed
+            cam_mtx: camera calibration matrix for undistorting the image
+            distortion: camera distortion coefficients for undistorting the
+                image
+
+        Output:
+            An image with lane lines and relevant statistics (eg lane
+            curvature, lane offset) overlaid
+
+    """
+
+    # Undistort the image then pass it to the lane line detection pipeline
+    undistorted = cv2.undistort(img, cam_mtx, distortion, None, cam_mtx)
+
+    return find_lane_lines(undistorted)
+
 
 def find_lane_lines(undist_img, img_name=None, output_dir=None):
     """Detect best-fit lane lines from an undistorted image
@@ -59,7 +91,7 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
     To enable the saving of debugging images, provide img_name and output_dir
 
         Input:
-            undist_img: Undistorted image containing lane lines
+            undist_img: Undistorted color image containing lane lines
             img_name: postfix to append to debugging image outputs
             output_dir: path to place debugging images
 
@@ -115,7 +147,6 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
         warped)
 
     # Find lane curvature
-    print("Lane pixel to meter scale values are incorrect.  Please update")
     met_per_pix_x = 3.7 / 580
     met_per_pix_y = 30 / 720
     # left_curvature = ll.measure_curvature_pixels(l_fit, warped.shape[0])
@@ -145,6 +176,9 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
         top_ll_area, M_inv, (undist_img.shape[1], undist_img.shape[0]))
     ll_overlay = cv2.addWeighted(undist_img, 1, warped_ll_area, 0.3, 0)
 
+    # Overlay image with lane curvature and vehicle lane offset
+    # TODO
+
     # Save debugging images if enabled (by providing image name and output dir)
     if img_name is not None and output_dir is not None:
         # Save images for various steps in the pipeline
@@ -171,12 +205,13 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
         plt.ylim(poly_img.shape[0], 0)
         plt.savefig(output_dir + "poly_" + img_name)
         # Display lane curvature and offset
+        print("Lane pixel to meter scale values are incorrect.  Please update")
         print("Left lane curvature:  ", int(round(left_curvature_met)))
         print("Right lane curvature: ", int(round(right_curvature_met)))
         print("Lane is offset in px: ", round(lane_offset_px, 1))
         print("Lane is offset in m:  ", round(lane_offset_m, 3))
 
-# Overlay image with lane curvature and vehicle lane offset
+    return ll_overlay
 
 
 if __name__ == "__main__":
