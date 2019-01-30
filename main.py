@@ -31,7 +31,7 @@ def main():
 
     # Make a list of test images
     images = glob.glob('./input/project_vid/*.png')
-    images = glob.glob('./input/project_vid/*22.png')
+    # images = glob.glob('./input/project_vid/*22.png')
 
     # Create output directory to save generated images
     output_dir = "./output/project_vid/"
@@ -51,15 +51,15 @@ def main():
 
         find_lane_lines(undistorted, img_name, output_dir)
 
-    # Perform lane line detection on a video
-    vid_input = "./input/project_video.mp4"
-    vid_output = "./output/project_video.mp4"
-    # vid_clip = VideoFileClip(vid_input).subclip(0, 5)
-    vid_clip = VideoFileClip(vid_input)
-    processed_clip = vid_clip.fl_image(
-        lambda distorted: vid_process_image(distorted, mtx, dist))
-    # processed_clip = vid_clip.fl_image(find_lane_lines)
-    processed_clip.write_videofile(vid_output, audio=False)
+    # # Perform lane line detection on a video
+    # vid_input = "./input/project_video.mp4"
+    # vid_output = "./output/project_video.mp4"
+    # # vid_clip = VideoFileClip(vid_input).subclip(0, 5)
+    # vid_clip = VideoFileClip(vid_input)
+    # processed_clip = vid_clip.fl_image(
+    #     lambda distorted: vid_process_image(distorted, mtx, dist))
+    # # processed_clip = vid_clip.fl_image(find_lane_lines)
+    # processed_clip.write_videofile(vid_output, audio=False)
 
 
 def vid_process_image(img, cam_mtx, distortion):
@@ -166,6 +166,7 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
         l_fit, warped.shape[0], met_per_pix_x, met_per_pix_y)
     right_curvature_met = ll.measure_curvature_meters(
         r_fit, warped.shape[0], met_per_pix_x, met_per_pix_y)
+    curvature_met = (left_curvature_met + right_curvature_met) / 2.0
 
     # Find vehicle offset in lane
     # This variable is the x position of the middle of the lane
@@ -188,7 +189,25 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
     ll_overlay = cv2.addWeighted(undist_img, 1, warped_ll_area, 0.3, 0)
 
     # Overlay image with lane curvature and vehicle lane offset
-    # TODO
+    text_curv_position = (30, 60)
+    text_offset_position = (30, 130)
+    text_color = (255, 255, 255)
+    text_font = cv2.FONT_HERSHEY_SIMPLEX
+    text_size = 2
+    text_thickness = 2
+    cv2.putText(ll_overlay, "Radius of Curvature (m): " +
+                str(int(curvature_met)), text_curv_position, text_font,
+                text_size, text_color, text_thickness)
+    if lane_offset_m < 0:
+        cv2.putText(ll_overlay, "Vehicle is " +
+                    str(abs(np.round(lane_offset_m, 2))) + "m left of center",
+                    text_offset_position, text_font,
+                    text_size, text_color, text_thickness)
+    else:
+        cv2.putText(ll_overlay, "Vehicle is " +
+                    str(abs(np.round(lane_offset_m, 2))) + "m right of center",
+                    text_offset_position, text_font,
+                    text_size, text_color, text_thickness)
 
     # Save debugging images if enabled (by providing image name and output dir)
     if img_name is not None and output_dir is not None:
@@ -217,6 +236,7 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
         plt.xlim(0, poly_img.shape[1])
         plt.ylim(poly_img.shape[0], 0)
         plt.savefig(output_dir + "poly_" + img_name)
+        plt.clf()
         # Display lane curvature and offset
         print("Lane pixel to meter scale values are incorrect.  Please update")
         print("Left lane curvature:  ", int(round(left_curvature_met)))
