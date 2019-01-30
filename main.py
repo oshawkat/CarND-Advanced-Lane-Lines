@@ -31,7 +31,7 @@ def main():
 
     # Make a list of test images
     images = glob.glob('./input/project_vid/*.png')
-    # images = glob.glob('./input/project_vid/*22.png')
+    images = glob.glob('./input/project_vid/*22.png')
 
     # Create output directory to save generated images
     output_dir = "./output/project_vid/"
@@ -51,15 +51,15 @@ def main():
 
         find_lane_lines(undistorted, img_name, output_dir)
 
-    # # Perform lane line detection on a video
-    # vid_input = "./input/project_video.mp4"
-    # vid_output = "./output/project_video.mp4"
-    # # vid_clip = VideoFileClip(vid_input).subclip(0, 5)
-    # vid_clip = VideoFileClip(vid_input)
-    # processed_clip = vid_clip.fl_image(
-    #     lambda distorted: vid_process_image(distorted, mtx, dist))
-    # # processed_clip = vid_clip.fl_image(find_lane_lines)
-    # processed_clip.write_videofile(vid_output, audio=False)
+    # Perform lane line detection on a video
+    vid_input = "./input/project_video.mp4"
+    vid_output = "./output/project_video.mp4"
+    # vid_clip = VideoFileClip(vid_input).subclip(0, 5)
+    vid_clip = VideoFileClip(vid_input)
+    processed_clip = vid_clip.fl_image(
+        lambda distorted: vid_process_image(distorted, mtx, dist))
+    # processed_clip = vid_clip.fl_image(find_lane_lines)
+    processed_clip.write_videofile(vid_output, audio=False)
 
 
 def vid_process_image(img, cam_mtx, distortion):
@@ -153,9 +153,13 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
     warped = cv2.warpPerspective(mask, M, (mask.shape[1], mask.shape[0]))
 
     # Find lane lines using sliding windows technique
-    leftx, lefty, rightx, righty, sliding_img = ll.find_lane_pixels(warped)
+    nwindows = 20    # Choose the number of sliding windows
+    margin = 50    # Set the width of the windows +/- margin
+    minpix = 50     # Set minimum number of pixels found to recenter window
+    leftx, lefty, rightx, righty, sliding_img = ll.find_lane_pixels(
+        warped, nwindows, margin, minpix)
     l_fit, r_fit, l_fitx, r_fitx, ploty, poly_img = ll.fit_polynomial(
-        warped)
+        warped, nwindows, margin, minpix)
 
     # Find lane curvature
     met_per_pix_x = 3.7 / 580

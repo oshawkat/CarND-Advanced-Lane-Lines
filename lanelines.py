@@ -127,7 +127,7 @@ def binary_threshold(array, min_val, max_val):
     return output
 
 
-def find_lane_pixels(binary_warped):
+def find_lane_pixels(binary_warped, nwindows=9, margin=100, minpix=50):
     """Find lane pixels using a sliding-window approach
 
     This method leverages code from Udacity's Self-Driving Car Nanodegree
@@ -153,11 +153,6 @@ def find_lane_pixels(binary_warped):
     midpoint = np.int(histogram.shape[0] // 2)
     leftx_base = np.argmax(histogram[:midpoint])
     rightx_base = np.argmax(histogram[midpoint:]) + midpoint
-
-    # HYPERPARAMETERS
-    nwindows = 9    # Choose the number of sliding windows
-    margin = 100    # Set the width of the windows +/- margin
-    minpix = 50     # Set minimum number of pixels found to recenter window
 
     # Set height of windows - based on nwindows above and image shape
     window_height = np.int(binary_warped.shape[0] // nwindows)
@@ -225,17 +220,22 @@ def find_lane_pixels(binary_warped):
     return leftx, lefty, rightx, righty, out_img
 
 
-def fit_polynomial(binary_warped):
+def fit_polynomial(binary_warped, nwindows=9, margin=100, minpix=50):
     """Determine best-fit polynomials for two lane lines
 
     Produces 2nd order polynomials that best fit detected lane lines from an
-    input image.  This method leverages code from Udacity's Self-Driving Car
+    input image.  Lane lines are found using a sliding-windows technique.This
+
+    This method leverages code from Udacity's Self-Driving Car
     Nanodegree lectures
 
     Lane line fit is given as [A, B, C] where x = Ay^2 + By + C
 
         Input:
             binary_warped: binary scene image from top-down view
+            nwindows: number of sliding windows
+            margin: width of sliding window (x2)
+            minpix: minimum number of found pixels to recenter window
 
         Output:
             left_fit: left lane line best-fit polynomial coefficients
@@ -249,7 +249,8 @@ def fit_polynomial(binary_warped):
     """
 
     # Find our lane pixels first
-    leftx, lefty, rightx, righty, out_img = find_lane_pixels(binary_warped)
+    leftx, lefty, rightx, righty, out_img = find_lane_pixels(
+        binary_warped, nwindows, margin, minpix)
 
     # Fit a second order polynomial to each using `np.polyfit`
     left_fit = np.polyfit(lefty, leftx, 2)
@@ -306,6 +307,7 @@ def draw_lane_line_area(left_fitx, right_fitx, ploty, img_shape):
 
     return valid_lane_region
 
+
 def solve_poly_at(poly, eval_pt=0):
     """Solve a 2nd deg polynomial function for a given input
 
@@ -319,7 +321,7 @@ def solve_poly_at(poly, eval_pt=0):
         Value of function evaluated at eval_pt
     """
 
-    return poly[0]*eval_pt**2 + poly[1]*eval_pt + poly[2]
+    return poly[0] * eval_pt ** 2 + poly[1] * eval_pt + poly[2]
 
 
 def measure_curvature_pixels(poly_fit, y_eval=0):
@@ -329,13 +331,13 @@ def measure_curvature_pixels(poly_fit, y_eval=0):
             poly: polynomial on which to calculate curvature
             y_eval: y value along poly at which the curvature
                     is calculated
-        
+
         Output:
             Radius of curvature, in pixels
     '''
 
-    curverad = ((1 + (2 * poly_fit[0] * y_eval + poly_fit[1])**2)**(3/2)) \
-               / abs(2 * poly_fit[0])
+    curverad = ((1 + (2 * poly_fit[0] * y_eval + poly_fit[1]) ** 2) **
+                (3 / 2)) / abs(2 * poly_fit[0])
 
     return curverad
 
