@@ -30,10 +30,11 @@ def main():
                     test_undistort)
 
     # Make a list of test images
-    images = glob.glob('./input/test_images/straight_lines2.jpg')
+    images = glob.glob('./input/project_vid/*.png')
+    images = glob.glob('./input/project_vid/*22.png')
 
     # Create output directory to save generated images
-    output_dir = "./output/lane_lines/"
+    output_dir = "./output/project_vid/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -106,16 +107,16 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
     smooth = cv2.GaussianBlur(undist_img, ksize=kernel_size, sigmaX=0)
 
     # Apply color thresholding in the HLS color space
-    color_min = 170
+    color_min = 90
     color_max = 255
-    hls = cv2.cvtColor(undist_img, cv2.COLOR_BGR2HLS)
+    hls = cv2.cvtColor(smooth, cv2.COLOR_BGR2HLS)
     sat_channel = hls[:, :, 2]
     color_threshed = ll.binary_threshold(sat_channel, color_min, color_max)
 
     # Apply gradient magnitude and orientation thresholding
     grad_ker_size = 3
-    gradmag_min = 60     # gradient magnitude threshold parameters
-    gradmag_max = 150
+    gradmag_min = 80     # gradient magnitude threshold parameters
+    gradmag_max = 200
     dog_min = 1.2     # gradient orientation threshold parameters
     dog_max = 1.4
     grey = cv2.cvtColor(smooth, cv2.COLOR_BGR2GRAY)
@@ -124,7 +125,17 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
                                                  dog_min, dog_max)
 
     # Combine various thresholds into a single mask for use in lane finding
-    mask = ll.rescale_img(gradmag_img)
+    combined_threshold = ll.rescale_img(gradmag_img + color_threshed)
+
+    # Apply an RoI filter to remove unlikely parts of the image
+    (height, width) = combined_threshold.shape
+    roi_vertices = np.array([[(0.10 * width, height - 1),     # bottom left
+                              (0.40 * width, 0.60 * height),  # top left
+                              (0.60 * width, 0.60 * height),  # top right
+                              (0.95 * width, height - 1)]],   # bottom right
+                            dtype=np.int32)
+    mask_unscaled = ll.region_of_interest(combined_threshold, roi_vertices)
+    mask = ll.rescale_img(mask_unscaled)
 
     # Change the lane perspective to a top-down view using points manually
     # selected from a straight-road image
@@ -192,6 +203,8 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
                     ll.rescale_img(gradmag_img))
         cv2.imwrite(output_dir + "dog_" + img_name,
                     ll.rescale_img(dog_img))
+        cv2.imwrite(output_dir + "thresholds_" + img_name,
+                    mask)
         cv2.imwrite(output_dir + "warped_" + img_name,
                     ll.rescale_img(warped))
         cv2.imwrite(output_dir + "sliding_win_" + img_name,
