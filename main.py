@@ -16,25 +16,23 @@ def main():
     mtx, dist, rvecs, tvecs = ll.calibrate_camera(calib_images, grid_size[0],
                                                   grid_size[1])
 
-    # Undistort and save a few images to validate calibration
-    num_pics_to_save = 2
+    # Save a sample of an undistorted image to validate calibration
+    calib_img_dist = cv2.imread("./input/camera_cal/calibration1.jpg")
     output_dir = "./output/camera_calibration/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    for pic_num in range(num_pics_to_save):
-        test_img = cv2.imread(calib_images[pic_num])
-        test_undistort = cv2.undistort(test_img, mtx, dist, None, mtx)
-        cv2.imwrite(output_dir + "distorted_" + str(pic_num) + ".jpg",
-                    test_img)
-        cv2.imwrite(output_dir + "undistorted_" + str(pic_num) + ".jpg",
-                    test_undistort)
+    calib_img_undist = cv2.undistort(calib_img_dist, mtx, dist, None, mtx)
+    cv2.imwrite(output_dir + "distorted_.jpg",
+                calib_img_dist)
+    cv2.imwrite(output_dir + "undistorted_.jpg",
+                calib_img_undist)
 
     # Make a list of test images
-    images = glob.glob('./input/project_vid/*.png')
-    images = glob.glob('./input/project_vid/*22.png')
+    images = glob.glob('./input/test_images/*.jpg')
+    # images = glob.glob('./input/project_vid/*22.png')
 
     # Create output directory to save generated images
-    output_dir = "./output/project_vid/"
+    output_dir = "./output/test_images/"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -58,7 +56,6 @@ def main():
     vid_clip = VideoFileClip(vid_input)
     processed_clip = vid_clip.fl_image(
         lambda distorted: vid_process_image(distorted, mtx, dist))
-    # processed_clip = vid_clip.fl_image(find_lane_lines)
     processed_clip.write_videofile(vid_output, audio=False)
 
 
@@ -242,7 +239,6 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
         plt.savefig(output_dir + "poly_" + img_name)
         plt.clf()
         # Display lane curvature and offset
-        print("Lane pixel to meter scale values are incorrect.  Please update")
         print("Left lane curvature:  ", int(round(left_curvature_met)))
         print("Right lane curvature: ", int(round(right_curvature_met)))
         print("Lane is offset in px: ", round(lane_offset_px, 1))
