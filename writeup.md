@@ -104,7 +104,7 @@ The valid lane region is drawn in the warped perspective then the inverse-warp t
 
 ![Annotated output image with valid lane region and lane line statistics][ll_overlay]
 
-You can view a processed video scene [here](../blob/master/output/project_video.mp4) as well
+You can view a processed video scene [here](./output/project_video.mp4) as well
 
 ---
 
