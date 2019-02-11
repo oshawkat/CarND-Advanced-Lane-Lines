@@ -5,16 +5,17 @@
 
 The goals of this project is to build a more robust lane detection algorithm that shows the forward lane location as well as providing statistics on lane curvature and vehicle offset within the lane.  The general steps are:
 
-    * Perform once: Find camera calibration and distortion coefficients
-    * Undistort the raw camera image
-    * Perform color and gradient magnitude thresholding to create a binary image
-    * Use a Region of Interest (ROI) filter to remove extraneous parts of the image
-    * Apply a perspective warp to transform the scene into an overhead view
-    * Detect lane lines using a sliding window approach
-    * Find best-fit polynomials to represent the lane lines
-    * Use the discovered lane lines to calculate lane curvature and vehicle offset
-    * Draw the valid lane region and warp it back to the undistorted perspective
-    * Overlay the output image with the lane lines and statistics
+ * Perform once: Find camera calibration and distortion coefficients
+ * Undistort the raw camera image
+ * Perform color and gradient magnitude thresholding to create a binary image
+ * Use a Region of Interest (ROI) filter to remove extraneous parts of the image
+ * Apply a perspective warp to transform the scene into an overhead view
+ * Detect lane lines using a sliding window approach
+ * Find best-fit polynomials to represent the lane lines
+ * Sense check detected lane lines and perform lane reconstruction/synthesis as needed
+ * Use the discovered lane lines to calculate lane curvature and vehicle offset
+ * Draw the valid lane region and warp it back to the undistorted perspective
+ * Overlay the output image with the lane lines and statistics
 
 [//]: # (Image References)
 
@@ -25,7 +26,7 @@ The goals of this project is to build a more robust lane detection algorithm tha
 [color_thresh]: ./output/test_images/color_threshed_test4.jpg
 [grad_mag_thresh]: ./output/test_images/gradmag_test4.jpg
 [combined_thresh]: ./output/test_images/thresholds_test4.jpg
-[warped]: ./output/test_images/warped_test4.jpg
+[warped]: ./output/test_images/warped_test3.jpg
 [best_fit]: ./output/test_images/poly_test2.jpg
 [ll_overlay]: ./output/test_images/ll_overlay_test2.jpg
 
@@ -58,7 +59,7 @@ to this:
 
 ![Undistorted lane view][undistorted]
 
-## 1. Binary Thresholding
+## 2. Binary Thresholding
 
 Both color and gradient magnitude thresholding are performed to improve lane detection results.  The former is performed from inside the ```find_lane_lines``` function in ```main.py```.  The undistorted image is converted to the HLS color space then binary thresholding is done on the saturation channel to provide increased resistance to lighting changes.  This produces images such as:
 
@@ -72,7 +73,7 @@ I combine the two binary images into a single image, adding pixel values directl
 
 ![Joint threshold image][combined_thresh]
 
-## 1. Perspective Transformation
+## 3. Perspective Transformation
 
 Perspective transformation is handled directly in the ```find_lane_lines()``` function in ```main.py```, starting approximately around line 140.  It utilizes OpenCV's ```getPerspectiveTransform()``` and ```warpPerspective()``` functions, using manually selected points to generate the transformation matrix using the former and feeding that, along with the input image, into the latter to generate the transformed image.
 
@@ -80,7 +81,7 @@ The process of selecting the source points (from the ego vehicle view) and desti
 
 ![Perspective transformation into the birds-eye view][warped]
 
-## 1. Lane Line Detection
+## 4. Lane Line Detection
 
 All the prior steps are precursors for the main event - lane line detection.  The core of this functionality lies in the ```fit_polynomial()``` function in the ```lanelines.py``` module.  The first step is to call the ```find_lane_pixels()``` method that, like the example demonstrated in the lecture, uses a sliding window technique on the perspective transformed binary image.  The algorithm first selects likely starting points for each lane by creating a histogram of pixel values in the lower half of the image along the vertical direction.  The maximal columns of both horizontal halves of the histogram seed the initial positions of their respective lanes.
 
@@ -90,15 +91,21 @@ Then, I use ```np.polyfit()``` to calculate a 2nd order polynomial that best fit
 
 ![Best-fit lane lines using the sliding window method][best_fit]
 
-## 1. Lane Curvature and Offset
+## 5. Sanity Checking and Lane Line Synthesis/Reconstruction
+
+In some instances, it can be difficult to confidently detect both lane lines (eg. shadows, cracks in road, missing lane line markers, occlusions, etc.).  This pipeline therefore includes lane line sanity check, located in the ```sense_check_lines()``` function in the ```lanelines.py``` module.  It currently performs simple checks to see whether the lane lines intersect or if the resulting drivable portion of the lane is too wide or narrow.
+
+If the lane lines are found to be invalid, a pair of lane lines can be generated from just a single good detection.  The ```synthesize_lines()``` function in the same module selects the better of the two detected lines then uses it to construct the other, assuming a standard US highway lane width.  Lane line quality is determined by the relative vertical distribution of lane line pixels, with the understanding that more consistent distributions, as measured by the median values of the calculated histograms, imply better tracking of an actual lane line
+
+## 6. Lane Curvature and Offset
 
 Lane curvature is calculated in the ```measure_curvature_meters()``` function in the ```lanelines.py``` module.  I first adjust the best-fit line coefficients to scale them from pixel space to meters (the exact values of this conversion will depend on your original scene and perspective warp).  Then I calculated the curvature formula we derived in lecture.  This resulted in two curvature values, one for each lane, which I averaged.
 
-Calculating lane offset took some manual pixel measurements.  I calculated the offset of the vehicle in one of the ``straight_lines*.jpg``` test images by measuring distance to each lane line from the image center and calculating that as a meter measure given assumptions about lane width.  With that as my baseline (as I had also used the image to find perspective warp values), I now had a reference point with which to compare all subsequent images.  By calculating the intersections of the best-fit lines and the base of the warped image, and a pixel to meters scale, I determine lane offset.  This is written in ```main.py```, around line 180.
+Calculating lane offset took some manual pixel measurements.  I calculated the offset of the vehicle in one of the ```straight_lines*.jpg``` test images by measuring distance to each lane line from the image center and calculating that as a meter measure given assumptions about lane width.  With that as my baseline (as I had also used the image to find perspective warp values), I now had a reference point with which to compare all subsequent images.  By calculating the intersections of the best-fit lines and the base of the warped image, and a pixel to meters scale, I determine lane offset.  This is written in ```main.py```, around line 180.
 
 Both lane curvature and offset statistics are overlaid on the final output images
 
-## 1. Final Output
+## 7. Final Output
 
 The valid lane region is drawn in the warped perspective then the inverse-warp transformation is applied to turn it back into the ego vehicle view.  Then this and lane statistics are overlaid on the undistorted image as output, which look like:
 
@@ -111,10 +118,11 @@ You can view a processed video scene [here](./output/project_video.mp4) as well
 # Discussion
 
 This lane finding methodology, though significantly more robust than the prior Canny edges based approach, is not without its shortcomings.  Significant parameter tuning is required, so it may not be entirely generalizable to all roads and lighting conditions.  It is prone to failure around:
-    * Large shadows or lighting changes in the lane
-    * Cracks or changes in pavement color within the lane
-    * Nearby vehicles in adjacent lanes
-    * Highly curved lanes
-    * Hills or lane occlusions
+
+* Large shadows or lighting changes in the lane
+* Cracks or changes in pavement color within the lane
+* Nearby vehicles in adjacent lanes
+* Highly curved lanes
+* Hills or lane occlusions
 
 The largest improvement in my lane finding is likely to be in adding some type of persistence between images in a video.  That way, when lane lines are difficult to detect or incorrectly detected, I can use prior results for a few frames instead.
