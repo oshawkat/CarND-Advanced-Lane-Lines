@@ -44,16 +44,16 @@ python main.py
 
 At this time, you will need to modify ```main.py``` to specify your own inputs (improved functionality coming soon).  You can also use the modules and pipeline directly to fit your needs
 
-## Authors
+### Authors
 
 * Osman Shawkat
 * Forked from [Udacity](https://github.com/udacity/CarND-Advanced-Lane-Lines)
 
-## License
+### License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
-## Acknowledgments
+### Acknowledgments
 
 * Algorithm inspiration and starter code courtesy of [Udacity's Self-Driving Car Nanodegree](https://www.udacity.com/course/self-driving-car-engineer-nanodegree--nd013) program - [Upstream](https://github.com/udacity/CarND-Advanced-Lane-Lines)
 * README template courtesy of Bille Thompson - [PurpleBooth](https://github.com/PurpleBooth)
