@@ -29,6 +29,7 @@ def main():
 
     # Make a list of test images
     images = glob.glob('./input/test_images/*.jpg')
+    # images = glob.glob('./input/debug/*.png')
     # images = glob.glob('./input/project_vid/*22.png')
 
     # Create output directory to save generated images
@@ -156,11 +157,16 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
     l_fit, r_fit, l_fitx, r_fitx, ploty, poly_img = ll.fit_polynomial(
         warped, nwindows, margin, minpix)
 
-    # Find lane curvature
+    # Sense check found lane lines and produce a best estimate
     met_per_pix_x = 3.7 / 580
     met_per_pix_y = 30 / 720
-    # left_curvature = ll.measure_curvature_pixels(l_fit, warped.shape[0])
-    # right_curvature = ll.measure_curvature_pixels(r_fit, warped.shape[0])
+    if not(ll.sense_check_lines(l_fit, r_fit, l_fitx, r_fitx, met_per_pix_x,
+                                True)):
+        l_fit, r_fit, l_fitx, r_fitx, ploty, poly_img = \
+            ll.synthesize_lines(warped, nwindows, margin, minpix,
+                                met_per_pix_x * 0.9)
+
+    # Find lane curvature
     left_curvature_met = ll.measure_curvature_meters(
         l_fit, warped.shape[0], met_per_pix_x, met_per_pix_y)
     right_curvature_met = ll.measure_curvature_meters(
@@ -199,12 +205,12 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
                 text_size, text_color, text_thickness)
     if lane_offset_m < 0:
         cv2.putText(ll_overlay, "Vehicle is " +
-                    str(abs(np.round(lane_offset_m, 2))) + "m left of center",
+                    str(abs(np.round(lane_offset_m, 1))) + "m left of center",
                     text_offset_position, text_font,
                     text_size, text_color, text_thickness)
     else:
         cv2.putText(ll_overlay, "Vehicle is " +
-                    str(abs(np.round(lane_offset_m, 2))) + "m right of center",
+                    str(abs(np.round(lane_offset_m, 1))) + "m right of center",
                     text_offset_position, text_font,
                     text_size, text_color, text_thickness)
 

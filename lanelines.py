@@ -419,3 +419,131 @@ def region_of_interest(img, vertices):
     # returning the image only where mask pixels are nonzero
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
+
+
+def sense_check_lines(l_fit, r_fit, l_fitx, r_fitx, met_per_pix_x=0.00638,
+                      debug=False):
+    """Decide whether the detected lines are likely to be real
+
+        Input:
+            l_fit: 2nd degree polynomial coefficients for the best-fit left
+                lane line as [A, B, C] where y = f(x) = Ax^2 + Bx + C
+            r_fit: 2nd degree polynomial coefficients for the best-fit right
+                lane line as [A, B, C] where y = f(x) = Ax^2 + Bx + C
+            l_fitx: x coordinates of left best-fit line for plotting in image
+                region
+            r_fitx: x coordinates of right best-fit line for plotting in image
+                region
+            ploty: y coordinates corresponding to left_fitx and right_fitx for
+                plotting in image region
+            met_per_pix_x: Scale of meters per pixel in x (horizontal)
+                direction
+            debug: Whether to print debug messages in function
+        Output:
+            True/False whether the lane lines are likely to be real
+    """
+    output = True
+
+    # US standard lane width
+    std_lane_width_px = 3.7 * (1.0 / met_per_pix_x)
+
+    # Check for consistent lane width
+    lane_width_px = r_fitx - l_fitx
+    if np.min(lane_width_px) < 0 and np.max(lane_width_px) > 0:
+        output = False
+        if debug:
+            print("Lane lines intersect in visible area")
+    elif np.max(lane_width_px) < 0:
+        output = False
+        if debug:
+            print("Left lane line lies entirely to the right of the right lane \
+                 line.  They may be reversed")
+
+    width_error_margin = 0.2
+    if np.max(lane_width_px) > (1.0 + width_error_margin) * std_lane_width_px:
+        output = False
+        if debug:
+            found_width = np.round(np.max(lane_width_px) /
+                                   std_lane_width_px, 2)
+            print("Lane is " + str(found_width) +
+                  " times the width of a standard lane, which is too wide")
+    if np.max(lane_width_px) < (1.0 - width_error_margin) * std_lane_width_px:
+        output = False
+        if debug:
+            found_width = np.round(np.min(lane_width_px) /
+                                   std_lane_width_px, 2)
+            print("Lane is " + str(found_width) +
+                  " times the width of a standard lane, which is too narrow")
+
+    return output
+
+
+def synthesize_lines(warped, nwindows=9, margin=100, minpix=50,
+                     met_per_pix_x=0.00638):
+    """Use the best lane line to predict the other
+
+    If two good lane lines cannot be found, use the better one as a template
+    to create the other
+
+    Note - this function uses the find_lane_pixels() and fit_polynomial()
+    functions implicitly
+
+        Input:
+            warped: threshold scene image from top-down view
+            nwindows: number of sliding windows
+            margin: width of sliding window (x2)
+            minpix: minimum number of found pixels to recenter window
+            met_per_pix_x: Scale of meters per pixel in x (horizontal)
+                direction
+        Output:
+            left_fit: left lane line best-fit polynomial coefficients
+            right_fit: left lane line best-fit polynomial coefficients
+            left_fitx: x coordinates of left best-fit line for plotting
+            right_fitx: x coordinates of right best-fit line for plotting
+            ploty: y coordinates corresponding to left_fitx and right_fitx for
+                plotting
+            out_img: input image overlaid with sliding window search boxes and
+                best-fit lines
+    """
+
+    # Find lane lines
+    leftx, lefty, rightx, righty, sliding_img = find_lane_pixels(
+        warped, nwindows, margin, minpix)
+    l_fit, r_fit, l_fitx, r_fitx, ploty, poly_img = fit_polynomial(
+        warped, nwindows, margin, minpix)
+
+    # Determine which of the two lane lines is better using a vertical
+    # histogram.  Lane line pixels that are more evenly distributed are likely
+    # to be tracking the actual lane line
+    num_bins = 10
+    bins = np.arange(warped.shape[0], step=(warped.shape[0] / num_bins))
+    l_hist = np.histogram(lefty, bins=bins)[0]
+    r_hist = np.histogram(righty, bins=bins)[0]
+    l_median = np.median(l_hist)
+    r_median = np.median(r_hist)
+    if l_median > r_median:
+        better_line = "left"
+    else:
+        better_line = "right"
+
+    # Use the better line to create the second line
+    valid_lane_portion = 0.95  # Width of newly created lane (be conservative)
+    lane_width_px = 3.7 * (1.0 / met_per_pix_x) * valid_lane_portion
+    if better_line is "left":
+        r_fitx = l_fitx + lane_width_px
+        r_fit = l_fit
+        r_fit[2] = l_fit[2] + lane_width_px
+    elif better_line is "right":
+        l_fitx = r_fitx - lane_width_px
+        l_fit = r_fit
+        l_fit[2] = r_fit[2] - lane_width_px
+    else:
+        print("Both lane lines are equally bad")
+
+    # Populate any remaining outputs
+    # Visualization
+    # Colors in the left and right lane regions
+    poly_img[lefty, leftx] = [0, 255, 0]
+    poly_img[righty, rightx] = [0, 255, 0]
+
+    return l_fit, r_fit, l_fitx, r_fitx, ploty, poly_img
