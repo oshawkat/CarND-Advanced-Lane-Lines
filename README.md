@@ -8,17 +8,17 @@ The goal of this project is to detect lane lines using only front-facing camera 
 
 You can find more detailed information about the lane detection pipeline in the [writeup](./writeup.md).  The general pipeline is:
 
-    * Perform once: Find camera calibration and distortion coefficients
-    * Undistort the raw camera image
-    * Perform color and gradient magnitude thresholding to create a feature image
-    * Use a Region of Interest (ROI) filter to remove extraneous parts of the image
-    * Apply a perspective warp to transform the feature image to an overhead view
-    * Detect lane lines using a sliding window approach
-    * Find best-fit polynomials to represent the lane lines
-    * Sense check detected lane lines and perform lane reconstruction/synthesis as needed
-    * Use the discovered lane lines to calculate lane curvature and vehicle offset
-    * Draw the valid lane region and warp it back to the undistorted perspective
-    * Overlay the output image with the lane lines and statistics
+ * Perform once: Find camera calibration and distortion coefficients
+ * Undistort the raw camera image
+ * Perform color and gradient magnitude thresholding to create a feature image
+ * Use a Region of Interest (ROI) filter to remove extraneous parts of the image
+ * Apply a perspective warp to transform the feature image to an overhead view
+ * Detect lane lines using a sliding window approach
+ * Find best-fit polynomials to represent the lane lines
+ * Sense check detected lane lines and perform lane reconstruction/synthesis as needed
+ * Use the discovered lane lines to calculate lane curvature and vehicle offset
+ * Draw the valid lane region and warp it back to the undistorted perspective
+ * Overlay the output image with the lane lines and statistics
 
 ### Prerequisites
 
