@@ -1,39 +1,59 @@
-## Advanced Lane Finding
+# Advanced Lane Finding
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
-![Lanes Image](./examples/example_output.jpg)
+![Lanes Image](./output/test_images/ll_overlay_test1.jpg)
 
-In this project, your goal is to write a software pipeline to identify the lane boundaries in a video, but the main output or product we want you to create is a detailed writeup of the project.  Check out the [writeup template](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup.  
+The goal of this project is to detect lane lines using only front-facing camera image data and 'classical' computer vision techniques (ie no neural networks)
 
-Creating a great writeup:
----
-A great writeup should include the rubric points as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
+### Pipeline Overview
 
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
+You can find more detailed information about the lane detection pipeline in the [writeup](./writeup.md).  The general pipeline is:
 
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
+    * Perform once: Find camera calibration and distortion coefficients
+    * Undistort the raw camera image
+    * Perform color and gradient magnitude thresholding to create a feature image
+    * Use a Region of Interest (ROI) filter to remove extraneous parts of the image
+    * Apply a perspective warp to transform the feature image to an overhead view
+    * Detect lane lines using a sliding window approach
+    * Find best-fit polynomials to represent the lane lines
+    * Sense check detected lane lines and perform lane reconstruction/synthesis as needed
+    * Use the discovered lane lines to calculate lane curvature and vehicle offset
+    * Draw the valid lane region and warp it back to the undistorted perspective
+    * Overlay the output image with the lane lines and statistics
 
-The Project
----
+### Prerequisites
 
-The goals / steps of this project are the following:
+This module has been tested on Python 3.5 and requires Numpy, OpenCV2, Matplotlib, and MoviePy.  For best results, you can clone the entire development Udacity Self-Driving environment using Anaconda ([full setup instructions](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/doc/configure_via_anaconda.md)).  If you already have Anaconda , you can setup the environment, called ```carnd-term1```, as follows:
 
-* Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-* Apply a distortion correction to raw images.
-* Use color transforms, gradients, etc., to create a thresholded binary image.
-* Apply a perspective transform to rectify binary image ("birds-eye view").
-* Detect lane pixels and fit to find the lane boundary.
-* Determine the curvature of the lane and vehicle position with respect to center.
-* Warp the detected lane boundaries back onto the original image.
-* Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
+```
+conda env create -f environment.yml
+conda clean -tp
+```
 
-The images for camera calibration are stored in the folder called `camera_cal`.  The images in `test_images` are for testing your pipeline on single frames.  If you want to extract more test images from the videos, you can simply use an image writing method like `cv2.imwrite()`, i.e., you can read the video in frame by frame as usual, and for frames you want to save for later you can write to an image file.  
+And activate the environment as:
+```
+source activate carnd-term1
+```
 
-To help the reviewer examine your work, please save examples of the output from each stage of your pipeline in the folder called `output_images`, and include a description in your writeup for the project of what each image shows.    The video called `project_video.mp4` is the video your pipeline should work well on.  
+### Use
 
-The `challenge_video.mp4` video is an extra (and optional) challenge for you if you want to test your pipeline under somewhat trickier conditions.  The `harder_challenge.mp4` video is another optional challenge and is brutal!
+The included ```main.py``` will process some test images (```./input/test_images```) and a sample video (```./input/project_video.mp4```) and save the results in ```./output```.  It is run as:
 
-If you're feeling ambitious (again, totally optional though), don't stop there!  We encourage you to go out and take video of your own, calibrate your camera and show us how you would implement this project from scratch!
+```
+python main.py
+```
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+At this time, you will need to modify ```main.py``` to specify your own inputs (improved functionality coming soon).  You can also use the modules and pipeline directly to fit your needs
 
+## Authors
+
+* Osman Shawkat
+* Forked from [Udacity](https://github.com/udacity/CarND-Advanced-Lane-Lines)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+## Acknowledgments
+
+* Algorithm inspiration and starter code courtesy of [Udacity's Self-Driving Car Nanodegree](https://www.udacity.com/course/self-driving-car-engineer-nanodegree--nd013) program - [Upstream](https://github.com/udacity/CarND-Advanced-Lane-Lines)
+* README template courtesy of Bille Thompson - [PurpleBooth](https://github.com/PurpleBooth)
