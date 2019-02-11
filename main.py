@@ -122,7 +122,7 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
                                                  dog_min, dog_max)
 
     # Combine various thresholds into a single mask for use in lane finding
-    combined_threshold = ll.rescale_img(gradmag_img + color_threshed)
+    combined_threshold = gradmag_img + color_threshed
 
     # Apply an RoI filter to remove unlikely parts of the image
     (height, width) = combined_threshold.shape
@@ -132,7 +132,7 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
                               (0.95 * width, height - 1)]],   # bottom right
                             dtype=np.int32)
     mask_unscaled = ll.region_of_interest(combined_threshold, roi_vertices)
-    mask = ll.rescale_img(mask_unscaled)
+    mask = mask_unscaled
 
     # Change the lane perspective to a top-down view using points manually
     # selected from a straight-road image
@@ -153,8 +153,6 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
     nwindows = 20    # Choose the number of sliding windows
     margin = 50    # Set the width of the windows +/- margin
     minpix = 50     # Set minimum number of pixels found to recenter window
-    leftx, lefty, rightx, righty, sliding_img = ll.find_lane_pixels(
-        warped, nwindows, margin, minpix)
     l_fit, r_fit, l_fitx, r_fitx, ploty, poly_img = ll.fit_polynomial(
         warped, nwindows, margin, minpix)
 
@@ -212,6 +210,10 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
 
     # Save debugging images if enabled (by providing image name and output dir)
     if img_name is not None and output_dir is not None:
+        # Generate sliding image
+        leftx, lefty, rightx, righty, sliding_img = ll.find_lane_pixels(
+            warped, nwindows, margin, minpix)
+
         # Save images for various steps in the pipeline
         cv2.imwrite(output_dir + "smooth_" + img_name, smooth)
         cv2.imwrite(output_dir + "sat_channel_" + img_name,
@@ -224,11 +226,11 @@ def find_lane_lines(undist_img, img_name=None, output_dir=None):
         cv2.imwrite(output_dir + "dog_" + img_name,
                     ll.rescale_img(dog_img))
         cv2.imwrite(output_dir + "thresholds_" + img_name,
-                    mask)
+                    ll.rescale_img(mask))
         cv2.imwrite(output_dir + "warped_" + img_name,
                     ll.rescale_img(warped))
         cv2.imwrite(output_dir + "sliding_win_" + img_name,
-                    sliding_img)
+                    ll.rescale_img(sliding_img))
         cv2.imwrite(output_dir + "ll_overlay_" + img_name, ll_overlay)
         # Plots the left and right best-fit polynomials on the lane lines
         plt.imshow(poly_img)

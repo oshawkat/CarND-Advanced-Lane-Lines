@@ -127,14 +127,24 @@ def binary_threshold(array, min_val, max_val):
     return output
 
 
-def find_lane_pixels(binary_warped, nwindows=9, margin=100, minpix=50):
+def find_lane_pixels(warped_img, nwindows=9, margin=100, minpix=50):
     """Find lane pixels using a sliding-window approach
+
+    This implementation introduces a technique to leverage actual pixel values
+    for the warped_img rather than just using a binary mask input.  This allows
+    for pixels that appear in multiple binary thresholds (eg color masking,
+    gradient magnitude) to be counted
+
+    WARNING - Passing images with large pixel values (eg >10) as it will result
+    in long processing times
 
     This method leverages code from Udacity's Self-Driving Car Nanodegree
     lectures
 
         Input:
-            binary_warped: binary scene image from top-down view
+            warped_img: scene image from top-down view.  Pixel values should
+                correspond to confidence that the pixel is a lane line.  Values
+                should be kept low (eg < 5)
 
         Output:
             leftx: x component of pixels in the left lane
@@ -145,9 +155,10 @@ def find_lane_pixels(binary_warped, nwindows=9, margin=100, minpix=50):
     """
 
     # Take a histogram of the bottom half of the image
-    histogram = np.sum(binary_warped[binary_warped.shape[0] // 2:, :], axis=0)
+    histogram = np.sum(warped_img[warped_img.shape[0] // 2:, :], axis=0)
     # Create an output image to draw on and visualize the result
-    out_img = np.dstack((binary_warped, binary_warped, binary_warped))
+    out_img = np.dstack((warped_img, warped_img, warped_img))
+    out_img = rescale_img(out_img)
     # Find the peak of the left and right halves of the histogram
     # These will be the starting point for the left and right lines
     midpoint = np.int(histogram.shape[0] // 2)
@@ -155,11 +166,21 @@ def find_lane_pixels(binary_warped, nwindows=9, margin=100, minpix=50):
     rightx_base = np.argmax(histogram[midpoint:]) + midpoint
 
     # Set height of windows - based on nwindows above and image shape
-    window_height = np.int(binary_warped.shape[0] // nwindows)
+    window_height = np.int(warped_img.shape[0] // nwindows)
     # Identify the x and y positions of all nonzero pixels in the image
-    nonzero = binary_warped.nonzero()
-    nonzeroy = np.array(nonzero[0])
-    nonzerox = np.array(nonzero[1])
+    nonzero_px = warped_img.nonzero()
+    nonzeroy = np.array(nonzero_px[0])
+    nonzerox = np.array(nonzero_px[1])
+    # Higher quality pixels should count more. Repeat them based on pixel value
+    scaled_nonzerox = np.repeat(
+        nonzerox, warped_img[nonzero_px].astype(int) + 1, axis=0)
+    scaled_nonzeroy = np.repeat(
+        nonzeroy, warped_img[nonzero_px].astype(int) + 1, axis=0)
+    if nonzerox.shape[0] > scaled_nonzerox.shape[0]:
+        print("WARNING - fewer non-zero points after scaling")
+    nonzerox = scaled_nonzerox
+    nonzeroy = scaled_nonzeroy
+
     # Current positions to be updated later for each window in nwindows
     leftx_current = leftx_base
     rightx_current = rightx_base
@@ -171,16 +192,16 @@ def find_lane_pixels(binary_warped, nwindows=9, margin=100, minpix=50):
     # Step through the windows one by one
     for window in range(nwindows):
         # Identify window boundaries in x and y (and right and left)
-        win_y_low = binary_warped.shape[0] - (window + 1) * window_height
-        win_y_high = binary_warped.shape[0] - window * window_height
+        win_y_low = warped_img.shape[0] - (window + 1) * window_height
+        win_y_high = warped_img.shape[0] - window * window_height
 
         # Find the four below boundaries of the window
         win_xleft_low = max(leftx_current - margin, 0)
         win_xleft_high = min(leftx_current + margin,
-                             binary_warped.shape[1] - 1)
+                             warped_img.shape[1] - 1)
         win_xright_low = max(rightx_current - margin, 0)
         win_xright_high = min(rightx_current + margin,
-                              binary_warped.shape[1] - 1)
+                              warped_img.shape[1] - 1)
 
         # Draw the windows on the visualization image
         cv2.rectangle(out_img, (win_xleft_low, win_y_low),
